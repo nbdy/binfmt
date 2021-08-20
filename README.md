@@ -1,4 +1,6 @@
 # binfmt
+[![CodeFactor](https://www.codefactor.io/repository/github/nbdy/binfmt/badge)](https://www.codefactor.io/repository/github/nbdy/binfmt)
+<br>
 `A header only framework for binary file formats`
 ## Minimal example
 ```c++
