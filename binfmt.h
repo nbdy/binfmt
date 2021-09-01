@@ -139,6 +139,10 @@ struct FileUtils {
    */
   static FILE* OpenBinaryFile(const std::string& FilePath, bool Create = false, uint32_t offset = 0) {
     FILE* r = nullptr;
+    auto filePath = Fs::path(FilePath);
+    if(!Fs::exists(filePath.parent_path())) {
+      Fs::create_directories(filePath.parent_path());
+    }
     if (Fs::exists(FilePath) || Create) {
       r = std::fopen(FilePath.c_str(), Create ? "wbe" : "r+be");
       if (fseek(r, offset, SEEK_SET) != 0) {
