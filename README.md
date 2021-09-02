@@ -4,21 +4,21 @@
 `A header only framework for binary file formats`
 ## benchmarks
 ### single insert (append EntryType)
-|Number|Time (ms)|
+|Number|Time (s)|
 |------|---------|
-|1k    |1290     |
-|10k   |13260    |
+|1k    |~ 1      |
+|10k   |~ 13     |
 |100k  |toolong  |
 
 ### vector insert (append std::vector<EntryType>)
-|Number|Time (ms)|
+|Number|Time (s)|
 |------|---------|
 |1k    |< 0 s    |
 |1M    |~ 2 s    |
 
 
 ### read 
-|Number|Time (ms)|
+|Number|Time (s)|
 |------|---------|
 |1M    |< 0 s    |
 
