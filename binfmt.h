@@ -145,7 +145,13 @@ struct FileUtils {
     }
     if (Fs::exists(FilePath) || Create) {
       r = std::fopen(FilePath.c_str(), Create ? "wbe" : "r+be");
-      if (fseek(r, offset, SEEK_SET) != 0) {
+      auto fn = fileno(r);
+      if(lockf(fn, F_LOCK, 0) != 0) {
+        (void) CloseBinaryFile(r);
+        r = nullptr;
+      }
+      auto sr = fseek(r, offset, SEEK_SET);
+      if (sr != 0) {
         (void) CloseBinaryFile(r);
         r = nullptr;
       }
@@ -159,7 +165,9 @@ struct FileUtils {
    * @return
    */
   static bool CloseBinaryFile(FILE* fp) {
-    auto r = syncfs(fileno(fp));
+    auto fn = fileno(fp);
+    (void) lockf(fn, F_ULOCK, 0);
+    auto r = syncfs(fn);
     return fclose(fp) == 0 && r == 0;
   }
 
@@ -229,6 +237,26 @@ struct FileUtils {
     auto r = fwrite(&entry, sizeof(EntryType), 1, fp);
     (void) CloseBinaryFile(fp);
     return r == 1;
+  }
+
+  /*!
+   * Write data entry to file. Skips size of HeaderType in bytes.
+   * @tparam EntryType
+   * @param FilePath
+   * @param entry
+   * @return false if file does not exist, seek to offset failed or we can't write the object
+   */
+  template<typename HeaderType, typename EntryType>
+  static bool WriteDataVector(const std::string& FilePath, std::vector<EntryType> entries, uint32_t offset = 0) {
+    uint32_t o = sizeof(HeaderType) + offset * sizeof(EntryType);
+    FILE* fp = OpenBinaryFile(FilePath, false, o);
+    if (fp == nullptr) {
+      std::cout << strerror(errno) << std::endl;
+      return false;
+    }
+    auto r = fwrite(&entries[0], sizeof(EntryType), entries.size(), fp);
+    (void) CloseBinaryFile(fp);
+    return r == entries.size();
   }
 
   /*!
@@ -480,6 +508,27 @@ class BinaryFile {
     }
 
     return AppendResult{rewind, ok, m_uCurrentAppendOffset};
+  }
+
+  AppendResult append(std::vector<EntryType> entries) {
+    AppendResult r {
+      false, true, 0
+    };
+    bool rewind = false;
+    if(getFileSize() + sizeof(ContainerType) * entries.size() > m_uMaxFileSize) {
+      r.rewind = true;
+      auto sizeLeft = m_uMaxFileSize - getFileSize();
+      uint32_t entriesLeft = sizeLeft / sizeof(ContainerType) - 1;
+      std::vector<EntryType> tmpEntries(entries.begin(), entries.begin() + entriesLeft);
+      entries = std::vector<EntryType>(entries.begin() + entriesLeft + 1, entries.end());
+      r = append(tmpEntries);
+    }
+    std::vector<ContainerType> containers;
+    for(const auto& entry : entries) {
+      containers.push_back(ContainerType(entry));
+    }
+    r.ok = FileUtils::WriteDataVector<HeaderType, ContainerType>(m_sFilePath, containers);
+    return r;
   }
 
   bool setEntryAt(EntryType entry, uint32_t position) {

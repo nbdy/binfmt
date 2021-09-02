@@ -2,6 +2,27 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/nbdy/binfmt/badge)](https://www.codefactor.io/repository/github/nbdy/binfmt)
 <br>
 `A header only framework for binary file formats`
+## benchmarks
+### single insert (append EntryType)
+|Number|Time (ms)|
+|------|---------|
+|1k    |1290     |
+|10k   |13260    |
+|100k  |toolong  |
+
+### vector insert (append std::vector<EntryType>)
+|Number|Time (ms)|
+|------|---------|
+|1k    |< 0 s    |
+|1M    |~ 2 s    |
+
+
+### read 
+|Number|Time (ms)|
+|------|---------|
+|1M    |< 0 s    |
+
+
 ## Minimal example
 ```c++
 #include <iostream>

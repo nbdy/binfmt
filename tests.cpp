@@ -3,11 +3,14 @@
 //
 
 #include "gtest/gtest.h"
+#include <chrono>
 #include "binfmt.h"
+#include <thread>
 
 #define TEST_DIRECTORY "/tmp/xxxxxxxxxx__xxxxxxxxxxx__xx"
 #define TEST_BINARY_FILE "/tmp/xxxxxxx__xxxxxxxxx.bin"
-#define TEST_MAX_ENTRIES 50
+#define TEST_MAX_ENTRIES 1000
+
 
 struct TestBinaryFileHeader : public BinaryFileHeaderBase {
   TestBinaryFileHeader(): BinaryFileHeaderBase(0x7357, 0x8888) {}
@@ -63,7 +66,7 @@ std::vector<TestBinaryEntryContainer> appendRandomAmountOfEntriesV(TestBinaryFil
   return r;
 }
 
-std::vector<TestBinaryEntryContainer> appendExactAmountOfEntriesV(TestBinaryFile f, int count = 42) {
+std::vector<TestBinaryEntryContainer> appendExactAmountOfEntriesV(TestBinaryFile f, uint32_t count = 42) {
   std::vector<TestBinaryEntryContainer> r;
   for(int i = 0; i < count; i++) {
     auto v = generateRandomTestEntryContainer();
@@ -286,3 +289,4 @@ TEST(BinaryFile, testRemoveEntryAt) {
   EXPECT_EQ(t0.checksum, t1.checksum);
   cleanupTestFile(t);
 }
+
