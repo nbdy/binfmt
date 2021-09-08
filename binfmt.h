@@ -140,7 +140,7 @@ struct FileUtils {
   static FILE* OpenBinaryFile(const std::string& FilePath, bool Create = false, uint32_t offset = 0) {
     FILE* r = nullptr;
     auto filePath = Fs::path(FilePath);
-    if(!Fs::exists(filePath.parent_path())) {
+    if(!Fs::exists(filePath.parent_path()) && Create) {
       Fs::create_directories(filePath.parent_path());
     }
     if (Fs::exists(FilePath) || Create) {
