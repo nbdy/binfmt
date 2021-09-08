@@ -9,6 +9,7 @@
 
 #define TEST_DIRECTORY "/tmp/xxxxxxxxxx__xxxxxxxxxxx__xx"
 #define TEST_BINARY_FILE "/tmp/xxxxxxx__xxxxxxxxx.bin"
+#define TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY "/tmp/xxxxxxxxxxxxxxxxxxx/xxxxxxx.bin"
 #define TEST_MAX_ENTRIES 1000
 
 
@@ -143,6 +144,43 @@ TEST(FileUtils, testWriteHeader) {
   cleanup(TEST_BINARY_FILE);
 }
 
+TEST(FileUtils, testWriteNotExistentFile) {
+  EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
+  TestBinaryEntryContainer container;
+  auto r = FileUtils::WriteData<TestBinaryFileHeader, TestBinaryEntryContainer>(TEST_BINARY_FILE, container);
+  EXPECT_FALSE(r);
+}
+
+TEST(FileUtils, testOpenInNonExistentDirectoryNoCreate) {
+  EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
+  auto r = FileUtils::OpenBinaryFile(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY, false);
+  EXPECT_EQ(r, nullptr);
+}
+
+TEST(FileUtils, testOpenInNonExistentDirectoryCreate) {
+  EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
+  auto r = FileUtils::OpenBinaryFile(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY, true);
+  EXPECT_NE(r, nullptr);
+  auto c = FileUtils::CloseBinaryFile(r);
+  EXPECT_TRUE(c);
+  c = FileUtils::DeleteDirectory(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY);
+  EXPECT_TRUE(c);
+}
+
+TEST(FileUtils, testDeleteDirectory) {
+  auto r = FileUtils::DeleteDirectory("/tmp/ThisDirectoryProbablyDoesNotExistAndIHopeItDoesNot");
+  EXPECT_TRUE(r);
+}
+
+TEST(FileUtils, testExistentDirectory) {
+  auto r = FileUtils::CreateDirectory("/tmp/");
+  EXPECT_TRUE(r);
+}
+
+TEST(FileUtils, testDeleteNotExistentFile) {
+  auto r = FileUtils::DeleteFile("/tmp/ThisFileProbablyDoesNotExistAndIHopeItDoesNot");
+  EXPECT_FALSE(r);
+}
 
 // Tests
 // - WriteHeader
@@ -290,3 +328,14 @@ TEST(BinaryFile, testRemoveEntryAt) {
   cleanupTestFile(t);
 }
 
+TEST(TimeUtils, GetSecondsSinceEpoch) {
+  EXPECT_GT(TimeUtils::GetSecondsSinceEpoch(), 0);
+}
+
+TEST(BinaryFile, testNoHeader) {
+  static std::string filePath("/tmp/binfmt_no_hdr_test.bin");
+  static std::string touchCmd("touch ");
+  static std::string cmd(touchCmd + filePath);
+  system(cmd.c_str());
+  // BinaryFile<TestBinaryFileHeader, TestBinaryEntry, 50> f(filePath);
+}
