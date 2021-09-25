@@ -1,4 +1,5 @@
 # binfmt
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/93012ab1a2a6432c8c89d6cf0435a138)](https://app.codacy.com/gh/nbdy/binfmt?utm_source=github.com&utm_medium=referral&utm_content=nbdy/binfmt&utm_campaign=Badge_Grade_Settings)
 [![CodeFactor](https://www.codefactor.io/repository/github/nbdy/binfmt/badge)](https://www.codefactor.io/repository/github/nbdy/binfmt)
 <br>
 `A header only framework for binary file formats`
