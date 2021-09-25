@@ -2,6 +2,7 @@
 // Created by nbdy on 20.08.21.
 //
 
+#include <fstream>
 #include "test_common.h"
 
 
@@ -209,7 +210,7 @@ TEST(BinaryFile, testDeleteFile) {
   EXPECT_EQ(t.getEntrySize(), sizeof(TestBinaryEntry));
   EXPECT_EQ(t.getContainerSize(), sizeof(TestBinaryEntryContainer));
   EXPECT_EQ(t.getHeader().magic, TestBinaryFileHeader{}.magic);
-  EXPECT_EQ(t.checkHeader(), TestBinaryFile::HEADER_OK);
+  EXPECT_EQ(t.checkHeader(), ErrorCode::HEADER_OK);
   cleanupTestFile(t);
 }
 
@@ -226,7 +227,7 @@ TEST(BinaryFile, testClear) {
 
 TEST(BinaryFile, testGetFileSize) {
   auto t = getRandomTestFile();
-  EXPECT_EQ(t.getErrorCode(), TestBinaryFile::ErrorCode::HEADER_OK);
+  EXPECT_EQ(t.getErrorCode(), ErrorCode::HEADER_OK);
   auto a = appendRandomAmountOfEntries(t);
   auto s = FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(a);
   auto se = FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(0);
@@ -313,8 +314,11 @@ TEST(BinaryFile, testNoHeader) {
   static std::string filePath("/tmp/binfmt_no_hdr_test.bin");
   static std::string touchCmd("touch ");
   static std::string cmd(touchCmd + filePath);
-  system(cmd.c_str());
-  // BinaryFile<TestBinaryFileHeader, TestBinaryEntry, 50> f(filePath);
+  std::ofstream o(filePath, std::ios::binary | std::ios::out);
+  o.write(" ", 1);
+  o.close();
+  TestBinaryFile f(filePath);
+  EXPECT_EQ(f.getErrorCode(), ErrorCode::HEADER_MISMATCH);
 }
 
 TEST(BinaryFile, testAppend) {
