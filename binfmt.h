@@ -30,8 +30,11 @@
 #ifndef BINFMT__BINFMT_H_
 #define BINFMT__BINFMT_H_
 
+#include <iostream>
 #include <string>
 #include <vector>
+#include <error.h>
+#include <string.h>
 #include <unistd.h>
 
 #if __GNUC__ >= 8
@@ -518,16 +521,23 @@ class BinaryFile {
     if(getFileSize() + sizeof(ContainerType) * entries.size() > m_uMaxFileSize) {
       r.rewind = true;
       auto sizeLeft = m_uMaxFileSize - getFileSize();
-      uint32_t entriesLeft = sizeLeft / sizeof(ContainerType) - 1;
-      std::vector<EntryType> tmpEntries(entries.begin(), entries.begin() + entriesLeft);
-      entries = std::vector<EntryType>(entries.begin() + entriesLeft + 1, entries.end());
-      r = append(tmpEntries);
+      if(sizeLeft == 0) {
+        m_uCurrentAppendOffset = 0;
+      } else {
+        uint32_t entriesLeft = sizeLeft / sizeof(ContainerType) - 1;
+        std::vector<EntryType> tmpEntries(entries.begin(), entries.begin() + entriesLeft);
+        entries = std::vector<EntryType>(entries.begin() + entriesLeft + 1, entries.end());
+        r = append(tmpEntries);
+      }
     }
     std::vector<ContainerType> containers;
     for(const auto& entry : entries) {
       containers.push_back(ContainerType(entry));
     }
-    r.ok = FileUtils::WriteDataVector<HeaderType, ContainerType>(m_sFilePath, containers);
+    r.ok = FileUtils::WriteDataVector<HeaderType, ContainerType>(m_sFilePath, containers, m_uCurrentAppendOffset);
+    if (r.ok) {
+      m_uCurrentAppendOffset += containers.size();
+    }
     return r;
   }
 
