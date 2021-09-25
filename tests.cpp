@@ -2,50 +2,20 @@
 // Created by nbdy on 20.08.21.
 //
 
-#include "gtest/gtest.h"
-#include <chrono>
-#include "binfmt.h"
-#include <thread>
-
-#define TEST_DIRECTORY "/tmp/xxxxxxxxxx__xxxxxxxxxxx__xx"
-#define TEST_BINARY_FILE "/tmp/xxxxxxx__xxxxxxxxx.bin"
-#define TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY "/tmp/xxxxxxxxxxxxxxxxxxx/xxxxxxx.bin"
-#define TEST_MAX_ENTRIES 1000
+#include "test_common.h"
 
 
-struct TestBinaryFileHeader : public BinaryFileHeaderBase {
-  TestBinaryFileHeader(): BinaryFileHeaderBase(0x7357, 0x8888) {}
-};
-
-struct TestBinaryEntry {
-  uint32_t uNumber;
-  int32_t  iNumber;
-  float    fNumber;
-  char     cChar;
-};
-
-typedef BinaryEntryContainer<TestBinaryEntry> TestBinaryEntryContainer;
-typedef BinaryFile<TestBinaryFileHeader, TestBinaryEntry, TestBinaryEntryContainer, TEST_MAX_ENTRIES> TestBinaryFile;
-
-char generateRandomChar(){
-  return 'A' + std::rand() % 24; // NOLINT(cert-msc50-cpp,cppcoreguidelines-narrowing-conversions)
-}
-
-int generateRandomInteger() {
-  return std::rand() % 10000000; // NOLINT(cert-msc50-cpp)
-}
-
-float generateRandomFloat() {
-  return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX); // NOLINT(cert-msc50-cpp)
+TestBinaryEntry generateRandomTestEntry() {
+  return TestBinaryEntry {
+      static_cast<uint32_t>(generateRandomInteger()),
+      generateRandomInteger(),
+      generateRandomFloat(),
+      generateRandomChar()
+  };
 }
 
 TestBinaryEntryContainer generateRandomTestEntryContainer() {
-  return TestBinaryEntryContainer(TestBinaryEntry {
-    static_cast<uint32_t>(generateRandomInteger()),
-    generateRandomInteger(),
-    generateRandomFloat(),
-    generateRandomChar()
-  });
+  return TestBinaryEntryContainer(generateRandomTestEntry());
 }
 
 int appendRandomAmountOfEntries(TestBinaryFile f, int max = 20) {
@@ -121,7 +91,9 @@ TEST(FileUtils, testCreateAndDeleteDirectory) {
 // - OpenBinaryFile
 // - CloseBinaryFile
 TEST(FileUtils, testOpenAndCloseBinaryFile) {
-  EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
+  if(Fs::exists(TEST_BINARY_FILE)){
+    Fs::remove(TEST_BINARY_FILE);
+  }
   EXPECT_EQ(FileUtils::OpenBinaryFile(TEST_BINARY_FILE), nullptr);
   auto *fp = FileUtils::OpenBinaryFile(TEST_BINARY_FILE, true);
   EXPECT_NE(fp, nullptr);
@@ -322,9 +294,14 @@ TEST(BinaryFile, testRemoveEntryAt) {
   auto ok = t.setEntryAt(t0, 50);
   EXPECT_TRUE(ok);
   TestBinaryEntryContainer t1;
+  TestBinaryEntry te1;
   ok = t.getEntryAt(t1, 50);
   EXPECT_TRUE(ok);
+  ok = t.getEntryAt(te1, 50);
+  EXPECT_TRUE(ok);
   EXPECT_EQ(t0.checksum, t1.checksum);
+  TestBinaryEntryContainer tbec(te1);
+  EXPECT_EQ(tbec.checksum, t0.checksum);
   cleanupTestFile(t);
 }
 
@@ -338,4 +315,25 @@ TEST(BinaryFile, testNoHeader) {
   static std::string cmd(touchCmd + filePath);
   system(cmd.c_str());
   // BinaryFile<TestBinaryFileHeader, TestBinaryEntry, 50> f(filePath);
+}
+
+TEST(BinaryFile, testAppend) {
+  auto t = getRandomTestFile();
+  t.append(generateRandomTestEntryContainer());
+  t.append(generateRandomTestEntry());
+  EXPECT_EQ(t.getEntryCount(), 2);
+  std::vector<TestBinaryEntry> entries;
+  entries.push_back(generateRandomTestEntry());
+  entries.push_back(generateRandomTestEntry());
+  t.append(entries);
+  EXPECT_EQ(t.getEntryCount(), 4);
+  appendExactAmountOfEntriesV(t, 996);
+  EXPECT_EQ(t.getEntryCount(), TEST_MAX_ENTRIES);
+  entries.clear();
+  entries.push_back(generateRandomTestEntry());
+  entries.push_back(generateRandomTestEntry());
+  t.append(entries);
+  auto tc = t.getEntryCount();
+  EXPECT_EQ(tc, TEST_MAX_ENTRIES);
+  cleanupTestFile(t);
 }

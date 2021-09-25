@@ -16,12 +16,10 @@
 |1k    |< 0 s    |
 |1M    |~ 2 s    |
 
-
 ### read 
 |Number|Time (s)|
 |------|---------|
 |1M    |< 0 s    |
-
 
 ## Minimal example
 ```c++
