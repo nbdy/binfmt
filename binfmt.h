@@ -34,7 +34,7 @@
 #include <string>
 #include <vector>
 #include <error.h>
-#include <string.h>
+#include <cstring>
 #include <unistd.h>
 
 #if __GNUC__ >= 8
@@ -93,7 +93,7 @@ struct BinaryFileHeaderBase {
   uint32_t magic;
 
   BinaryFileHeaderBase() = default;
-  explicit BinaryFileHeaderBase(uint32_t version, uint32_t magic): version(version), magic(magic) {}
+  explicit BinaryFileHeaderBase(uint32_t version, uint32_t magic) : version(version), magic(magic) {}
 };
 
 template<typename Entry>
@@ -143,13 +143,13 @@ struct FileUtils {
   static FILE* OpenBinaryFile(const std::string& FilePath, bool Create = false, uint32_t offset = 0) {
     FILE* r = nullptr;
     auto filePath = Fs::path(FilePath);
-    if(!Fs::exists(filePath.parent_path()) && Create) {
+    if (!Fs::exists(filePath.parent_path()) && Create) {
       Fs::create_directories(filePath.parent_path());
     }
     if (Fs::exists(FilePath) || Create) {
       r = std::fopen(FilePath.c_str(), Create ? "wbe" : "r+be");
       auto fn = fileno(r);
-      if(lockf(fn, F_LOCK, 0) != 0) {
+      if (lockf(fn, F_LOCK, 0) != 0) {
         (void) CloseBinaryFile(r);
         r = nullptr;
       }
@@ -271,13 +271,16 @@ struct FileUtils {
    * @return
    */
   template<typename HeaderType, typename EntryType>
-  static bool ReadData(std::vector<EntryType>& Output, const std::string& FilePath, uint32_t offset = 0, uint32_t count = 0) {
+  static bool ReadData(std::vector<EntryType>& Output,
+                       const std::string& FilePath,
+                       uint32_t offset = 0,
+                       uint32_t count = 0) {
     auto EntrySize = sizeof(EntryType);
     auto EntryCount = (GetFileSize(FilePath) - sizeof(HeaderType)) / EntrySize;
     uint32_t o = sizeof(HeaderType) + offset * EntrySize;
-    FILE *fp = OpenBinaryFile(FilePath, false, o);
+    FILE* fp = OpenBinaryFile(FilePath, false, o);
 
-    if(count > 0) {
+    if (count > 0) {
       EntryCount = count;
     }
 
@@ -316,11 +319,10 @@ struct FileUtils {
    * @param FilePath
    * @return false if the file does not exist, seek to start of data section begins / truncation / file closing failed
    */
-  template <typename HeaderType, typename EntryType>
-  static bool ClearFile(const std::string &FilePath, uint32_t offset = 0)
-  {
-    auto *fp = OpenBinaryFile(FilePath);
-    if(fp == nullptr) {
+  template<typename HeaderType, typename EntryType>
+  static bool ClearFile(const std::string& FilePath, uint32_t offset = 0) {
+    auto* fp = OpenBinaryFile(FilePath);
+    if (fp == nullptr) {
       return false;
     }
     auto r = ftruncate(fileno(fp), GetFileSize<HeaderType, EntryType>(offset));
@@ -417,10 +419,8 @@ struct FileUtils {
    * @param FilePath
    * @return false if it does not exist, else the return value of std::filesystem::remove
    */
-  static bool DeleteFile(const std::string &FilePath)
-  {
-    if (!Fs::exists(FilePath))
-    {
+  static bool DeleteFile(const std::string& FilePath) {
+    if (!Fs::exists(FilePath)) {
       return false;
     }
     return Fs::remove(FilePath);
@@ -433,15 +433,15 @@ struct AppendResult {
   uint32_t offset{};
 };
 
+enum class ErrorCode {
+  HEADER_OK = 0,
+  HEADER_MISMATCH,
+  NO_HEADER
+};
+
 template<typename HeaderType, typename EntryType, typename ContainerType, uint32_t EntryCount>
 class BinaryFile {
  public:
-  enum ErrorCode {
-    HEADER_OK = 0,
-    HEADER_MISMATCH,
-    NO_HEADER
-  };
-
   [[maybe_unused]] explicit BinaryFile(std::string FilePath, HeaderType ExpectedHeader)
       : m_sFilePath(std::move(FilePath)) {
     initialize(ExpectedHeader);
@@ -473,7 +473,7 @@ class BinaryFile {
 
   ErrorCode checkHeader() {
     HeaderType tmp;
-    if(FileUtils::GetHeader(m_sFilePath, tmp)) {
+    if (FileUtils::GetHeader(m_sFilePath, tmp)) {
       m_ErrorCode = tmp.magic == m_Header.magic ? ErrorCode::HEADER_OK : ErrorCode::HEADER_MISMATCH;
     } else {
       m_ErrorCode = ErrorCode::NO_HEADER;
@@ -505,7 +505,8 @@ class BinaryFile {
       rewind = true;
     }
 
-    auto ok = FileUtils::WriteData<HeaderType, ContainerType>(m_sFilePath, ContainerType(entry), m_uCurrentAppendOffset);
+    auto
+        ok = FileUtils::WriteData<HeaderType, ContainerType>(m_sFilePath, ContainerType(entry), m_uCurrentAppendOffset);
     if (ok) {
       m_uCurrentAppendOffset += 1;
     }
@@ -514,14 +515,14 @@ class BinaryFile {
   }
 
   AppendResult append(std::vector<EntryType> entries) {
-    AppendResult r {
-      false, true, 0
+    AppendResult r{
+        false, true, 0
     };
     bool rewind = false;
-    if(getFileSize() + sizeof(ContainerType) * entries.size() > m_uMaxFileSize) {
+    if (getFileSize() + sizeof(ContainerType) * entries.size() > m_uMaxFileSize) {
       r.rewind = true;
       auto sizeLeft = m_uMaxFileSize - getFileSize();
-      if(sizeLeft == 0) {
+      if (sizeLeft == 0) {
         m_uCurrentAppendOffset = 0;
       } else {
         uint32_t entriesLeft = sizeLeft / sizeof(ContainerType) - 1;
@@ -531,7 +532,7 @@ class BinaryFile {
       }
     }
     std::vector<ContainerType> containers;
-    for(const auto& entry : entries) {
+    for (const auto& entry: entries) {
       containers.push_back(ContainerType(entry));
     }
     r.ok = FileUtils::WriteDataVector<HeaderType, ContainerType>(m_sFilePath, containers, m_uCurrentAppendOffset);
@@ -559,7 +560,7 @@ class BinaryFile {
 
   bool getEntryAt(EntryType& entry, uint32_t position) {
     ContainerType tmp;
-    if(FileUtils::ReadDataAt<HeaderType, ContainerType>(m_sFilePath, position, tmp)) {
+    if (FileUtils::ReadDataAt<HeaderType, ContainerType>(m_sFilePath, position, tmp)) {
       entry = tmp.entry;
       return true;
     }
