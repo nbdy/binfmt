@@ -2,12 +2,14 @@ cmake_minimum_required(VERSION 3.0.0)
 project(binfmt)
 set(CMAKE_CXX_STANDARD 17)
 
-add_library(binfmt binfmt.h)
+add_library(binfmt include/binfmt.h)
 set_target_properties(binfmt PROPERTIES LINKER_LANGUAGE CXX)
-set_target_properties(binfmt PROPERTIES PUBLIC_HEADER "binfmt.h")
+set_target_properties(binfmt PROPERTIES PUBLIC_HEADER "include/binfmt.h")
 
 option(TESTS "Compile tests" OFF)
 option(EXAMPLES "Compile examples" OFF)
+
+include_directories(include)
 
 if(TESTS)
     include(FetchContent)
@@ -19,17 +21,19 @@ if(TESTS)
     FetchContent_MakeAvailable(googletest)
     enable_testing()
 
-    add_executable(binfmt_tests tests.cpp)
     add_executable(binfmt_benchmarks benchmarks.cpp)
+    add_executable(binfmt_FileUtils_Tests tests_FileUtils.cpp)
+    add_executable(binfmt_BinaryFile_Tests tests_BinaryFile.cpp)
 
-    target_compile_definitions(binfmt_tests PRIVATE -DTESTS)
     target_compile_definitions(binfmt_benchmarks PRIVATE -DTESTS)
+    target_compile_definitions(binfmt_FileUtils_Tests PRIVATE -DTESTS)
+    target_compile_definitions(binfmt_BinaryFile_Tests PRIVATE -DTESTS)
 
-    target_link_libraries(binfmt_tests gtest_main)
     target_link_libraries(binfmt_benchmarks gtest_main)
+    target_link_libraries(binfmt_FileUtils_Tests gtest_main)
+    target_link_libraries(binfmt_BinaryFile_Tests gtest_main)
 
     include(GoogleTest)
-    gtest_discover_tests(binfmt_tests)
 endif()
 
 if(EXAMPLES)

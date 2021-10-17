@@ -7,6 +7,7 @@
 
 ## benchmarks
 
+# v1
 ### single insert (append EntryType)
 
 |Number|Time (s)|

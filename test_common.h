@@ -1,5 +1,5 @@
 //
-// Created by nbdy on 25.09.21.
+// Created by nbdy on 13.10.21.
 //
 
 #ifndef BINFMT__TEST_COMMON_H_
@@ -10,11 +10,11 @@
 
 #include "gtest/gtest.h"
 
-#include "binfmt.h"
+#include "binfmtv2.h"
 
 #define TEST_DIRECTORY "/tmp/xxxxxxxxxx__xxxxxxxxxxx__xx"
 #define TEST_BINARY_FILE "/tmp/xxxxxxx__xxxxxxxxx.bin"
-#define TEST_MAX_ENTRIES 1000000000
+#define TEST_MAX_ENTRIES 1000
 #define TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY "/tmp/xxxxxxxxxxxxxxxxxxx/xxxxxxx.bin"
 
 #define TIMESTAMP std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now())
@@ -36,7 +36,8 @@ TIMEIT_DIFF = TIMEIT_END_TIMESTAMP - TIMEIT_START_TIMESTAMP; \
 std::cout << TIMEIT_NAME << ": " << std::to_string(TIMEIT_DIFF) << " s" << std::endl;
 
 struct TestBinaryFileHeader : public BinaryFileHeaderBase {
-  TestBinaryFileHeader(): BinaryFileHeaderBase(0x7357, 0x8888) {}
+  TestBinaryFileHeader(): BinaryFileHeaderBase(1, 42) {}
+  explicit TestBinaryFileHeader(char* data): BinaryFileHeaderBase(data) {}
 };
 
 struct TestBinaryEntry {
@@ -61,4 +62,57 @@ float generateRandomFloat() {
   return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX); // NOLINT(cert-msc50-cpp)
 }
 
-#endif //BINFMT__TEST_COMMON_H_
+TestBinaryEntryContainer generateRandomTestEntryContainer() {
+  return TestBinaryEntryContainer(TestBinaryEntry {
+      static_cast<uint32_t>(generateRandomInteger()),
+      generateRandomInteger(),
+      generateRandomFloat(),
+      generateRandomChar()
+  });
+}
+
+void cleanupTestFile(TestBinaryFile f) {
+  f.deleteFile();
+  EXPECT_FALSE(Fs::exists(f.getFilePath()));
+}
+
+
+int appendRandomAmountOfEntries(TestBinaryFile& f, int max = 50) {
+  int r = std::rand() % max; // NOLINT(cert-msc50-cpp)
+  for(int i = 0; i < r; i++) {
+    EXPECT_TRUE(f.append(generateRandomTestEntryContainer()).ok);
+  }
+  return r;
+}
+
+std::vector<TestBinaryEntryContainer> appendRandomAmountOfEntriesV(TestBinaryFile& f, int max = 20) {
+  int x = std::rand() % max; // NOLINT(cert-msc50-cpp)
+  std::vector<TestBinaryEntryContainer> r;
+  for(int i = 0; i < x; i++) {
+    auto v = generateRandomTestEntryContainer();
+    r.push_back(v);
+    EXPECT_TRUE(f.append(v).ok);
+  }
+  return r;
+}
+
+std::vector<TestBinaryEntryContainer> appendExactAmountOfEntriesV(TestBinaryFile& f, uint32_t count = 42) {
+  std::vector<TestBinaryEntryContainer> r;
+  for(int i = 0; i < count; i++) {
+    auto v = generateRandomTestEntryContainer();
+    r.push_back(v);
+    EXPECT_TRUE(f.append(v).ok);
+  }
+  return r;
+}
+
+TestBinaryEntry generateRandomTestEntry() {
+  return TestBinaryEntry {
+      static_cast<uint32_t>(generateRandomInteger()),
+      generateRandomInteger(),
+      generateRandomFloat(),
+      generateRandomChar()
+  };
+}
+
+#endif // BINFMT__TEST_COMMON_H_
