@@ -171,5 +171,5 @@ TEST(BinaryFile, benchmark) {
   TIMEIT_END
   TIMEIT_RESULT
 
-  std::vector
+  // std::vector
 }

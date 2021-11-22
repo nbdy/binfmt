@@ -218,8 +218,6 @@ public:
     }
     if(write(m_iFileDescriptor, &m_ExpectedHeader, m_uHeaderSize) != static_cast<int32_t>(m_uHeaderSize)) {
       std::cout << " write writeSize != m_uHeaderSize" << std::endl;
-    } else {
-      m_uCurrentAppendOffset += m_uHeaderSize;
     }
     fsync(m_iFileDescriptor);
   }
@@ -234,11 +232,11 @@ public:
 
     if(m_ErrorCode != ErrorCode::HEADER_OK) {
       writeHeader();
+      readHeader();
+      fsync(m_iFileDescriptor);
     }
 
-    readHeader();
-
-    fsync(m_iFileDescriptor);
+    m_uCurrentAppendOffset = m_uHeaderSize + (m_uContainerSize * getEntryCount());
   }
 
   bool clear() {
