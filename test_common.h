@@ -19,7 +19,7 @@
 
 #define TIMESTAMP std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now())
 
-std::string TIMEIT_NAME = "TIMEIT";
+const char* TIMEIT_NAME = "TIMEIT";
 time_t TIMEIT_START_TIMESTAMP = 0;
 time_t TIMEIT_END_TIMESTAMP = 0;
 time_t TIMEIT_DIFF = 0;
@@ -35,23 +35,18 @@ TIMEIT_END_TIMESTAMP = TIMESTAMP;
 TIMEIT_DIFF = TIMEIT_END_TIMESTAMP - TIMEIT_START_TIMESTAMP; \
 std::cout << TIMEIT_NAME << ": " << std::to_string(TIMEIT_DIFF) << " s" << std::endl;
 
-struct TestBinaryFileHeader : public BinaryFileHeaderBase {
+struct TestBinaryFileHeader : public binfmt::BinaryFileHeaderBase {
   TestBinaryFileHeader(): BinaryFileHeaderBase(0x7357, 0x8888) {}
 };
 
 struct TestBinaryEntry {
-  uint32_t uNumber;
   int32_t  iNumber;
   float    fNumber;
-  char     cChar;
 };
 
-typedef BinaryEntryContainer<TestBinaryEntry> TestBinaryEntryContainer;
-typedef BinaryFile<TestBinaryFileHeader, TestBinaryEntry, TestBinaryEntryContainer, TEST_MAX_ENTRIES> TestBinaryFile;
+using TestBinaryEntryContainer = binfmt::BinaryEntryContainer<TestBinaryEntry>;
+using TestBinaryFile = binfmt::BinaryFile<TestBinaryFileHeader, TestBinaryEntry, TestBinaryEntryContainer, TEST_MAX_ENTRIES>;
 
-char generateRandomChar(){
-  return 'A' + std::rand() % 24; // NOLINT(cert-msc50-cpp,cppcoreguidelines-narrowing-conversions)
-}
 
 int generateRandomInteger() {
   return std::rand() % 10000000; // NOLINT(cert-msc50-cpp)

@@ -13,8 +13,8 @@ struct LogEntry {
   char message[128];
 };
 
-typedef BinaryEntryContainer<LogEntry> LogEntryContainer;
-typedef BinaryFile<LogHeader, LogEntry, LogEntryContainer, 1000> LogFile;
+using LogEntryContainer = BinaryEntryContainer<LogEntry>;
+using LogFile = BinaryFile<LogHeader, LogEntry, LogEntryContainer, 1000>;
 
 int main() {
   LogFile log("mylog.bin");

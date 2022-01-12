@@ -12,10 +12,8 @@ TestBinaryFile getRandomTestFile() {
 
 TestBinaryEntryContainer generateRandomTestEntryContainer() {
   return TestBinaryEntryContainer(TestBinaryEntry {
-      static_cast<uint32_t>(generateRandomInteger()),
       generateRandomInteger(),
       generateRandomFloat(),
-      generateRandomChar()
   });
 }
 
@@ -24,6 +22,7 @@ void cleanupTestFile(TestBinaryFile f) {
   EXPECT_FALSE(Fs::exists(f.getFilePath()));
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, test1kInsert) {
   auto t = getRandomTestFile();
   std::vector<TestBinaryEntry> entries;
@@ -39,6 +38,7 @@ TEST(BinaryFile, test1kInsert) {
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, test10kInsert) {
   auto t = getRandomTestFile();
   std::vector<TestBinaryEntry> entries;
@@ -61,6 +61,7 @@ TEST(BinaryFile, test10kInsert) {
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, test100kInsert) {
   auto t = getRandomTestFile();
   std::vector<TestBinaryEntry> entries;
@@ -76,6 +77,7 @@ TEST(BinaryFile, test100kInsert) {
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, test1MInsert) {
   auto t = getRandomTestFile();
   std::vector<TestBinaryEntry> entries;

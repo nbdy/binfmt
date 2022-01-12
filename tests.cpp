@@ -8,10 +8,8 @@
 
 TestBinaryEntry generateRandomTestEntry() {
   return TestBinaryEntry {
-      static_cast<uint32_t>(generateRandomInteger()),
       generateRandomInteger(),
       generateRandomFloat(),
-      generateRandomChar()
   };
 }
 
@@ -71,8 +69,9 @@ void cleanup(const std::string& FilePath) {
 // - Creation of EntryContainer
 // - Checksum generation of contained entry
 // - Validity check function
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(Checksum, testGenerate) {
-  TestBinaryEntryContainer c(TestBinaryEntry{1, 2, 3.14});
+  TestBinaryEntryContainer c(TestBinaryEntry{2, 3.14});
   EXPECT_GT(c.checksum, 0);
   EXPECT_TRUE(c.isEntryValid());
 }
@@ -80,25 +79,27 @@ TEST(Checksum, testGenerate) {
 // Tests
 // - CreateDirectory
 // - DeleteDirectory
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testCreateAndDeleteDirectory) {
   EXPECT_FALSE(Fs::exists(TEST_DIRECTORY));
-  EXPECT_TRUE(FileUtils::CreateDirectory(TEST_DIRECTORY));
+  EXPECT_TRUE(binfmt::FileUtils::CreateDirectory(TEST_DIRECTORY));
   EXPECT_TRUE(Fs::exists(TEST_DIRECTORY));
-  EXPECT_TRUE(FileUtils::DeleteDirectory(TEST_DIRECTORY));
+  EXPECT_TRUE(binfmt::FileUtils::DeleteDirectory(TEST_DIRECTORY));
   EXPECT_FALSE(Fs::exists(TEST_DIRECTORY));
 }
 
 // Tests
 // - OpenBinaryFile
 // - CloseBinaryFile
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testOpenAndCloseBinaryFile) {
   if(Fs::exists(TEST_BINARY_FILE)){
     Fs::remove(TEST_BINARY_FILE);
   }
-  EXPECT_EQ(FileUtils::OpenBinaryFile(TEST_BINARY_FILE), nullptr);
-  auto *fp = FileUtils::OpenBinaryFile(TEST_BINARY_FILE, true);
+  EXPECT_EQ(binfmt::FileUtils::OpenBinaryFile(TEST_BINARY_FILE), nullptr);
+  auto *fp = binfmt::FileUtils::OpenBinaryFile(TEST_BINARY_FILE, true);
   EXPECT_NE(fp, nullptr);
-  EXPECT_TRUE(FileUtils::CloseBinaryFile(fp));
+  EXPECT_TRUE(binfmt::FileUtils::CloseBinaryFile(fp));
   EXPECT_TRUE(Fs::exists(TEST_BINARY_FILE));
   cleanup(TEST_BINARY_FILE);
 }
@@ -106,52 +107,59 @@ TEST(FileUtils, testOpenAndCloseBinaryFile) {
 // Tests
 // - WriteHeader
 // - GetHeader
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testWriteHeader) {
   EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
   TestBinaryFileHeader hdr;
-  EXPECT_TRUE(FileUtils::WriteHeader(TEST_BINARY_FILE, hdr));
+  EXPECT_TRUE(binfmt::FileUtils::WriteHeader(TEST_BINARY_FILE, hdr));
   EXPECT_TRUE(Fs::exists(TEST_BINARY_FILE));
   TestBinaryFileHeader tmp;
-  EXPECT_TRUE(FileUtils::GetHeader(TEST_BINARY_FILE, tmp));
+  EXPECT_TRUE(binfmt::FileUtils::GetHeader(TEST_BINARY_FILE, tmp));
   EXPECT_EQ(hdr.version, tmp.version);
   cleanup(TEST_BINARY_FILE);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testWriteNotExistentFile) {
   EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
   TestBinaryEntryContainer container;
-  auto r = FileUtils::WriteData<TestBinaryFileHeader, TestBinaryEntryContainer>(TEST_BINARY_FILE, container);
+  auto r = binfmt::FileUtils::WriteData<TestBinaryFileHeader, TestBinaryEntryContainer>(TEST_BINARY_FILE, container);
   EXPECT_FALSE(r);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testOpenInNonExistentDirectoryNoCreate) {
   EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
-  auto r = FileUtils::OpenBinaryFile(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY, false);
+  auto r = binfmt::FileUtils::OpenBinaryFile(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY, false);
   EXPECT_EQ(r, nullptr);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testOpenInNonExistentDirectoryCreate) {
   EXPECT_FALSE(Fs::exists(TEST_BINARY_FILE));
-  auto r = FileUtils::OpenBinaryFile(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY, true);
+  auto r = binfmt::FileUtils::OpenBinaryFile(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY, true);
   EXPECT_NE(r, nullptr);
-  auto c = FileUtils::CloseBinaryFile(r);
+  auto c = binfmt::FileUtils::CloseBinaryFile(r);
   EXPECT_TRUE(c);
-  c = FileUtils::DeleteDirectory(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY);
+  c = binfmt::FileUtils::DeleteDirectory(TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY);
   EXPECT_TRUE(c);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testDeleteDirectory) {
-  auto r = FileUtils::DeleteDirectory("/tmp/ThisDirectoryProbablyDoesNotExistAndIHopeItDoesNot");
+  auto r = binfmt::FileUtils::DeleteDirectory("/tmp/ThisDirectoryProbablyDoesNotExistAndIHopeItDoesNot");
   EXPECT_TRUE(r);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testExistentDirectory) {
-  auto r = FileUtils::CreateDirectory("/tmp/");
+  auto r = binfmt::FileUtils::CreateDirectory("/tmp/");
   EXPECT_TRUE(r);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testDeleteNotExistentFile) {
-  auto r = FileUtils::DeleteFile("/tmp/ThisFileProbablyDoesNotExistAndIHopeItDoesNot");
+  auto r = binfmt::FileUtils::DeleteFile("/tmp/ThisFileProbablyDoesNotExistAndIHopeItDoesNot");
   EXPECT_FALSE(r);
 }
 
@@ -162,19 +170,20 @@ TEST(FileUtils, testDeleteNotExistentFile) {
 void createReadCompareTwo(const std::string& FilePath) {
   EXPECT_FALSE(Fs::exists(FilePath));
   TestBinaryFileHeader hdr;
-  EXPECT_TRUE(FileUtils::WriteHeader(FilePath, hdr));
+  EXPECT_TRUE(binfmt::FileUtils::WriteHeader(FilePath, hdr));
   EXPECT_TRUE(Fs::exists(FilePath));
-  TestBinaryEntryContainer c1(TestBinaryEntry{3, 4, 5.32});
-  TestBinaryEntryContainer c2(TestBinaryEntry{6, -2, 9.1});
-  EXPECT_TRUE(FileUtils::WriteData<TestBinaryFileHeader>(FilePath, c1, 0));
-  EXPECT_TRUE(FileUtils::WriteData<TestBinaryFileHeader>(FilePath, c2, 1));
+  TestBinaryEntryContainer c1(TestBinaryEntry{4, 5.32});
+  TestBinaryEntryContainer c2(TestBinaryEntry{-2, 9.1});
+  EXPECT_TRUE(binfmt::FileUtils::WriteData<TestBinaryFileHeader>(FilePath, c1, 0));
+  EXPECT_TRUE(binfmt::FileUtils::WriteData<TestBinaryFileHeader>(FilePath, c2, 1));
   TestBinaryEntryContainer r2;
-  FileUtils::ReadDataAt<TestBinaryFileHeader, TestBinaryEntryContainer>(FilePath, 1, r2);
+  binfmt::FileUtils::ReadDataAt<TestBinaryFileHeader, TestBinaryEntryContainer>(FilePath, 1, r2);
   EXPECT_TRUE(r2.isEntryValid());
   EXPECT_EQ(c2.entry.iNumber, r2.entry.iNumber);
   EXPECT_EQ(c2.entry.fNumber, r2.entry.fNumber);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testWriteData) {
   createReadCompareTwo(TEST_BINARY_FILE);
   cleanup(TEST_BINARY_FILE);
@@ -182,38 +191,41 @@ TEST(FileUtils, testWriteData) {
 
 // Tests
 // - GetFileSize
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testGetFileSize) {
   createReadCompareTwo(TEST_BINARY_FILE);
-  auto fs1 = FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(2);
-  auto fs2 = FileUtils::GetFileSize(TEST_BINARY_FILE);
+  auto fs1 = binfmt::FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(2);
+  auto fs2 = binfmt::FileUtils::GetFileSize(TEST_BINARY_FILE);
   EXPECT_EQ(fs1, fs2);
   cleanup(TEST_BINARY_FILE);
 }
 
 // Tests
 // - RemoveAt
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(FileUtils, testRemoveAt) {
   createReadCompareTwo(TEST_BINARY_FILE);
-  auto r = FileUtils::RemoveAt<TestBinaryFileHeader, TestBinaryEntryContainer>(TEST_BINARY_FILE, 1);
+  auto r = binfmt::FileUtils::RemoveAt<TestBinaryFileHeader, TestBinaryEntryContainer>(TEST_BINARY_FILE, 1);
   EXPECT_TRUE(r);
-  auto fs1 = FileUtils::GetFileSize(TEST_BINARY_FILE);
-  auto fs2 = FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(1);
+  auto fs1 = binfmt::FileUtils::GetFileSize(TEST_BINARY_FILE);
+  auto fs2 = binfmt::FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(1);
   EXPECT_EQ(fs1, fs2);
   cleanup(TEST_BINARY_FILE);
 }
 
 // ----------------------- BinaryFile tests
-
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testDeleteFile) {
   auto t = getRandomTestFile();
   EXPECT_EQ(t.getHeaderSize(), sizeof(TestBinaryFileHeader));
   EXPECT_EQ(t.getEntrySize(), sizeof(TestBinaryEntry));
   EXPECT_EQ(t.getContainerSize(), sizeof(TestBinaryEntryContainer));
   EXPECT_EQ(t.getHeader().magic, TestBinaryFileHeader{}.magic);
-  EXPECT_EQ(t.checkHeader(), ErrorCode::HEADER_OK);
+  EXPECT_EQ(t.checkHeader(), binfmt::ErrorCode::HEADER_OK);
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testClear) {
   auto t = getRandomTestFile();
   int a = appendRandomAmountOfEntries(t);
@@ -225,18 +237,20 @@ TEST(BinaryFile, testClear) {
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testGetFileSize) {
   auto t = getRandomTestFile();
-  EXPECT_EQ(t.getErrorCode(), ErrorCode::HEADER_OK);
+  EXPECT_EQ(t.getErrorCode(), binfmt::ErrorCode::HEADER_OK);
   auto a = appendRandomAmountOfEntries(t);
-  auto s = FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(a);
-  auto se = FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(0);
+  auto s = binfmt::FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(a);
+  auto se = binfmt::FileUtils::GetFileSize<TestBinaryFileHeader, TestBinaryEntryContainer>(0);
   EXPECT_EQ(t.getFileSize(), s);
   t.clear();
   EXPECT_EQ(t.getFileSize(), se);
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testGetAllEntries) {
   auto t = getRandomTestFile();
   auto ae = appendRandomAmountOfEntriesV(t);
@@ -255,11 +269,12 @@ TEST(BinaryFile, testGetAllEntries) {
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testRollover) {
   auto t = getRandomTestFile();
   auto ae = appendExactAmountOfEntriesV(t, TEST_MAX_ENTRIES);
   EXPECT_EQ(t.getEntryCount(), TEST_MAX_ENTRIES);
-  auto ta = TestBinaryEntryContainer {TestBinaryEntry {4444, -4444, 44.44, '4'}};
+  auto ta = TestBinaryEntryContainer {TestBinaryEntry {-4444, 44.44}};
   auto ar = t.append(ta);
   EXPECT_TRUE(ar.rewind);
   EXPECT_TRUE(ar.ok);
@@ -271,6 +286,7 @@ TEST(BinaryFile, testRollover) {
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testGetEntriesFrom) {
   auto t = getRandomTestFile();
   auto ae = appendExactAmountOfEntriesV(t, 20);
@@ -284,6 +300,7 @@ TEST(BinaryFile, testGetEntriesFrom) {
   cleanupTestFile(t);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testRemoveEntryAt) {
   auto t = getRandomTestFile();
   auto ae = appendExactAmountOfEntriesV(t, TEST_MAX_ENTRIES);
@@ -291,11 +308,11 @@ TEST(BinaryFile, testRemoveEntryAt) {
   EXPECT_TRUE(t.removeEntryAt(42));
   auto ec = t.getEntryCount();
   EXPECT_EQ(ec, TEST_MAX_ENTRIES - 1);
-  auto t0 = TestBinaryEntryContainer(TestBinaryEntry{1337, -1337, 13.37, 'l'});
+  auto t0 = TestBinaryEntryContainer(TestBinaryEntry{-1337, 13.37});
   auto ok = t.setEntryAt(t0, 50);
   EXPECT_TRUE(ok);
-  TestBinaryEntryContainer t1;
-  TestBinaryEntry te1;
+  TestBinaryEntryContainer t1 {};
+  TestBinaryEntry te1 {};
   ok = t.getEntryAt(t1, 50);
   EXPECT_TRUE(ok);
   ok = t.getEntryAt(te1, 50);
@@ -306,10 +323,7 @@ TEST(BinaryFile, testRemoveEntryAt) {
   cleanupTestFile(t);
 }
 
-TEST(TimeUtils, GetSecondsSinceEpoch) {
-  EXPECT_GT(TimeUtils::GetSecondsSinceEpoch(), 0);
-}
-
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testNoHeader) {
   static std::string filePath("/tmp/binfmt_no_hdr_test.bin");
   static std::string touchCmd("touch ");
@@ -318,9 +332,10 @@ TEST(BinaryFile, testNoHeader) {
   o.write(" ", 1);
   o.close();
   TestBinaryFile f(filePath);
-  EXPECT_EQ(f.getErrorCode(), ErrorCode::HEADER_MISMATCH);
+  EXPECT_EQ(f.getErrorCode(), binfmt::ErrorCode::HEADER_MISMATCH);
 }
 
+// NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testAppend) {
   auto t = getRandomTestFile();
   t.append(generateRandomTestEntryContainer());

@@ -53,19 +53,13 @@ defined(__linux__) || defined(__ANDROID__)
 (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)  // NOLINT(cppcoreguidelines-macro-usage)
 #endif
 
-using SystemClock = std::chrono::system_clock;
+namespace binfmt {
 
 enum SizeType {
   Byte = 1,
   KiloByte = SizeType::Byte * 1024,
   MegaByte = SizeType::KiloByte * 1024,
   GigaByte [[maybe_unused]] = SizeType::MegaByte * 1024
-};
-
-struct TimeUtils {
-  static uint32_t GetSecondsSinceEpoch() {
-    return SystemClock::to_time_t(SystemClock::now());
-  }
 };
 
 struct Checksum {
@@ -608,5 +602,7 @@ class BinaryFile {
 
   uint32_t m_uCurrentAppendOffset = 0;
 };
+
+}  // namespace binfmt
 
 #endif //BINFMT__BINFMT_H_

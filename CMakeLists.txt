@@ -6,8 +6,9 @@ add_library(binfmt binfmt.h)
 set_target_properties(binfmt PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(binfmt PROPERTIES PUBLIC_HEADER "binfmt.h")
 
-option(TESTS "Compile tests" OFF)
-option(EXAMPLES "Compile examples" OFF)
+option(TESTS "Compile tests" ON)
+option(EXAMPLES "Compile examples" ON)
+option(PYTHON "Compile python bindings" OFF)
 
 if(TESTS)
     include(FetchContent)
@@ -37,6 +38,20 @@ if(EXAMPLES)
     add_executable(binfmt_ex_min examples/minimal.cpp)
 endif()
 
+if(PYTHON)
+    find_package(pybind11 CONFIG REQUIRED)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    pybind11_add_module(pybinfmt python_bindings.cpp)
+    execute_process(COMMAND python3 -m site --user-site OUTPUT_VARIABLE PYTHON_SITE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set_target_properties(pybinfmt PROPERTIES PUBLIC_HEADER "binfmt.h")
+    install(TARGETS pybinfmt DESTINATION ${PYTHON_SITE} PUBLIC_HEADER DESTINATION binfmt)
+endif()
+
 install(TARGETS binfmt
         LIBRARY DESTINATION "lib"
         PUBLIC_HEADER DESTINATION "include")
+
+unset(TESTS CACHE)
+unset(EXAMPLES CACHE)
+unset(PYTHON CACHE)

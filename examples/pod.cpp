@@ -15,8 +15,8 @@ struct MyPODEntry {
 };
 
 constexpr uint32_t MaxEntryCount = 1337;
-typedef BinaryEntryContainer<MyPODEntry> MyPODContainer;
-typedef BinaryFile<MyPODHeader, MyPODEntry, MyPODContainer, MaxEntryCount> MyBinaryFile;
+using MyPODContainer = BinaryEntryContainer<MyPODEntry>;
+using MyBinaryFile = BinaryFile<MyPODHeader, MyPODEntry, MyPODContainer, MaxEntryCount>;
 
 int main() {
   MyBinaryFile f("MyFile.bin");
