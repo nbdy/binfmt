@@ -27,7 +27,7 @@ TEST(binfmt, initializeExistingFile) {
 TEST(binfmt, appendEntry) {
   TestBinaryFile file("/tmp/test.bin", TestBinaryHeader{});
   EXPECT_EQ(file.getErrorCode(), binfmt::ErrorCode::OK);
-  EXPECT_TRUE(file.append(TestBinaryEntry{1}));
+  EXPECT_EQ(file.append(TestBinaryEntry{1}), binfmt::ErrorCode::OK);
   EXPECT_EQ(file.getOffset(), 1);
   EXPECT_TRUE(file.deleteFile());
 }
@@ -36,7 +36,7 @@ TEST(binfmt, appendEntry) {
 TEST(binfmt, appendContainer) {
   TestBinaryFile file("/tmp/test.bin", TestBinaryHeader{});
   EXPECT_EQ(file.getErrorCode(), binfmt::ErrorCode::OK);
-  EXPECT_TRUE(file.append(TestBinaryEntryContainer{TestBinaryEntry{1}}));
+  EXPECT_EQ(file.append(TestBinaryEntryContainer{TestBinaryEntry{1}}), binfmt::ErrorCode::OK);
   EXPECT_EQ(file.getOffset(), 1);
   EXPECT_TRUE(file.deleteFile());
 }
@@ -45,8 +45,8 @@ TEST(binfmt, appendContainer) {
 TEST(binfmt, appendEntries) {
   TestBinaryFile file("/tmp/test.bin", TestBinaryHeader{});
   EXPECT_EQ(file.getErrorCode(), binfmt::ErrorCode::OK);
-  EXPECT_TRUE(file.append(
-      {TestBinaryEntry{1}, TestBinaryEntry{2}, TestBinaryEntry{3}}));
+  EXPECT_EQ(file.append(
+      {TestBinaryEntry{1}, TestBinaryEntry{2}, TestBinaryEntry{3}}), binfmt::ErrorCode::OK);
   EXPECT_EQ(file.getOffset(), 3);
   EXPECT_TRUE(file.deleteFile());
 }
@@ -55,9 +55,10 @@ TEST(binfmt, appendEntries) {
 TEST(binfmt, appendContainers) {
   TestBinaryFile file("/tmp/test.bin", TestBinaryHeader{});
   EXPECT_EQ(file.getErrorCode(), binfmt::ErrorCode::OK);
-  EXPECT_TRUE(file.append({TestBinaryEntryContainer{TestBinaryEntry{1}},
-                           TestBinaryEntryContainer{TestBinaryEntry{2}},
-                           TestBinaryEntryContainer{TestBinaryEntry{3}}}));
+  std::vector<TestBinaryEntryContainer> containers = {TestBinaryEntryContainer{TestBinaryEntry{1}},
+                                                       TestBinaryEntryContainer{TestBinaryEntry{2}},
+                                                       TestBinaryEntryContainer{TestBinaryEntry{3}}};
+  EXPECT_EQ(file.append(containers), binfmt::ErrorCode::OK);
   EXPECT_EQ(file.getOffset(), 3);
   EXPECT_TRUE(file.deleteFile());
 }
@@ -66,8 +67,8 @@ TEST(binfmt, appendContainers) {
 TEST(binfmt, removeEntryAtEnd) {
   TestBinaryFile file("/tmp/test.bin", TestBinaryHeader{});
   EXPECT_EQ(file.getErrorCode(), binfmt::ErrorCode::OK);
-  EXPECT_TRUE(file.append(
-      {TestBinaryEntry{1}, TestBinaryEntry{2}, TestBinaryEntry{3}}));
+  std::vector<TestBinaryEntry> entries = {TestBinaryEntry{1}, TestBinaryEntry{2}, TestBinaryEntry{3}};
+  EXPECT_EQ(file.append(entries), binfmt::ErrorCode::OK);
   auto fileSize = file.getFileSize();
   EXPECT_EQ(file.getOffset(), 3);
   EXPECT_TRUE(file.removeEntryAtEnd());
@@ -88,19 +89,19 @@ TEST(binfmt, rollover10Entries) {
       TestBinaryEntry{4}, TestBinaryEntry{5}, TestBinaryEntry{6},
       TestBinaryEntry{7}, TestBinaryEntry{8}, TestBinaryEntry{9},
       TestBinaryEntry{10}};
-  EXPECT_TRUE(file.append(entries));
+  EXPECT_EQ(file.append(entries), binfmt::ErrorCode::OK);
   // Check if we have 10 entries
-  EXPECT_EQ(file.getOffset(), 10);
   EXPECT_EQ(file.getHeader().count, 10);
+  // the offset should be 0, since we rolled over with the tenth entry
+  EXPECT_EQ(file.getOffset(), 0);
+  // Append another entry to first position (rollover)
   auto eleventhEntry = TestBinaryEntry{11};
   TestBinaryEntryContainer eleventhEntryContainer{eleventhEntry};
-  // Append one more to trigger rollover
-  EXPECT_TRUE(file.append(eleventhEntry));
-  // Check if our offset is 1 (We rolled over to 0, so the next offset would be
-  // 1)
-  EXPECT_EQ(file.getOffset(), 1);
+  EXPECT_EQ(file.append(eleventhEntry), binfmt::ErrorCode::OK);
   // Check if our count is 11
   EXPECT_EQ(file.getHeader().count, 11);
+  // Our offset should be 1 now
+  EXPECT_EQ(file.getOffset(), 1);
   // Check if the contents are equal
   TestBinaryEntryContainer readEleventhEntryContainer{};
   EXPECT_TRUE(file.getEntry(0, readEleventhEntryContainer));
@@ -112,13 +113,12 @@ TEST(binfmt, rollover10Entries) {
       TestBinaryEntry{15}, TestBinaryEntry{16}, TestBinaryEntry{17},
       TestBinaryEntry{18}, TestBinaryEntry{19}, TestBinaryEntry{20},
       TestBinaryEntry{21}};
-  EXPECT_TRUE(file.append(entries2));
-  EXPECT_TRUE(file.getEntryCount() == 21);
-  // Check if our offset is 1 (We rolled over to 0, so the next offset would be
-  // 1)
-  EXPECT_EQ(file.getOffset(), 1);
-  // Check if our count is 21
+  // We should end up at 1 again, since we will roll over
+  EXPECT_EQ(file.append(entries2), binfmt::ErrorCode::OK);
+  // The count should be 21
   EXPECT_EQ(file.getHeader().count, 21);
+  // Our offset should be 1 again
+  EXPECT_EQ(file.getOffset(), 1);
   // Check if the contents are equal
   EXPECT_TRUE(file.deleteFile());
 }
@@ -127,12 +127,13 @@ TEST(binfmt, rollover10Entries) {
 TEST(binfmt, getEntriesFromTo) {
   TestBinaryFile file("/tmp/test.bin", TestBinaryHeader{});
   EXPECT_EQ(file.getErrorCode(), binfmt::ErrorCode::OK);
-  std::vector<TestBinaryEntryContainer> cache;
+  std::vector<TestBinaryEntryContainer> cache {};
   for (uint32_t i = 0; i < 2000; i++) {
     cache.emplace_back(TestBinaryEntry{i});
-    EXPECT_TRUE(file.append(cache[i]));
+    EXPECT_EQ(file.append(cache[i]), binfmt::ErrorCode::OK);
   }
-  auto entries = file.getEntriesFromTo(0, 1000);
+  std::vector<TestBinaryEntryContainer> entries;
+  EXPECT_TRUE(file.getEntriesFromTo(entries, 0, 1000));
   for (uint32_t i = 0; i < 1000; i++) {
     EXPECT_EQ(entries[i].checksum, cache[i].checksum);
   }
@@ -147,7 +148,7 @@ TEST(binfmt, getEntriesChunked) {
   std::vector<TestBinaryEntryContainer> cache;
   for (uint32_t i = 0; i < 2000; i++) {
     cache.emplace_back(TestBinaryEntry{i});
-    EXPECT_TRUE(file.append(cache[i]));
+    EXPECT_EQ(file.append(cache[i]), binfmt::ErrorCode::OK);
   }
   std::vector<TestBinaryEntryContainer> entries;
   file.getEntriesChunked(
@@ -289,14 +290,14 @@ TEST(BinaryFile, testAppend) {
   entries.push_back(generateRandomTestEntry());
   t.append(entries);
   EXPECT_EQ(t.getEntryCount(), 4);
-  appendExactAmountOfEntriesV(t, TEST_MAX_ENTRIES - 4);
-  EXPECT_EQ(t.getEntryCount(), TEST_MAX_ENTRIES);
+  appendExactAmountOfEntriesV(t, 100 - 4);
+  EXPECT_EQ(t.getEntryCount(), 100);
   entries.clear();
   entries.push_back(generateRandomTestEntry());
   entries.push_back(generateRandomTestEntry());
   t.append(entries);
   auto tc = t.getEntryCount();
-  EXPECT_EQ(tc, TEST_MAX_ENTRIES);
+  EXPECT_EQ(tc, 102);
   cleanupTestFile(t);
 }
 

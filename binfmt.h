@@ -132,11 +132,12 @@ template <typename EntryType> struct BinaryEntryContainer {
 
 enum class ErrorCode {
   OK = 0,
-  NO_HEADER,
-  HEADER_MALFORMED,
+  OPEN_ERROR,
   MAGIC_MISMATCH,
-  FILE_ERROR,
-  HEADER_WRITE_ERROR
+  SEEK_ERROR,
+  READ_ERROR,
+  WRITE_ERROR,
+  SYNC_ERROR,
 };
 
 template <typename HeaderType, typename EntryType, typename ContainerType>
@@ -151,23 +152,111 @@ class BinaryFile {
 #ifndef LOCK_FREE
   std::mutex m_Mutex;
 #endif
-  int m_Fd = -1;
+  int32_t m_Fd = -1;
   ErrorCode m_ErrorCode = ErrorCode::OK;
+  std::vector<std::string> m_Errors;
 
-  bool seekToIndex(uint32_t index) {
-    return seekTo(getByteOffsetFromIndex(index));
+protected:
+  virtual void onSysCallError() {
+    const char* error = strerror(errno);
+    if(error != nullptr) {
+      m_Errors.emplace_back(std::string(error));
+    }
   }
 
-  bool seekTo(uint32_t offset) {
-    bool r = true;
-    if (lseek(m_Fd, static_cast<off_t>(offset), SEEK_SET) == -1) {
-      m_ErrorCode = ErrorCode::FILE_ERROR;
-      r = false;
+  bool seekTo(uint32_t offset, ErrorCode* o_pErrorCode = nullptr) {
+    bool r = lseek(m_Fd, static_cast<off_t>(offset), SEEK_SET) == offset;
+    if(!r) {
+      onSysCallError();
+    }
+    if(o_pErrorCode != nullptr) {
+      *o_pErrorCode = r ? ErrorCode::OK : ErrorCode::SEEK_ERROR;
     }
     return r;
   }
 
-protected:
+  bool seekToIndex(uint32_t index, ErrorCode* o_pErrorCode = nullptr) {
+    return seekTo(getByteOffsetFromIndex(index), o_pErrorCode);
+  }
+
+  bool sync(ErrorCode* o_pErrorCode) {
+    bool r = fsync(m_Fd) == 0;
+    if(!r) {
+      onSysCallError();
+    }
+    if(o_pErrorCode != nullptr) {
+      *o_pErrorCode = r ? ErrorCode::OK : ErrorCode::SYNC_ERROR;
+    }
+    return r;
+  }
+
+  template<typename DataType>
+  bool writeData(DataType i_Data, ErrorCode* o_pErrorCode = nullptr) {
+    bool r = write(m_Fd, &i_Data, sizeof(DataType)) == sizeof(DataType);
+    if(r) {
+      r = sync(o_pErrorCode);
+    } else {
+      onSysCallError();
+    }
+    if(o_pErrorCode != nullptr) {
+      *o_pErrorCode = r ? ErrorCode::OK : ErrorCode::WRITE_ERROR;
+    }
+    return r;
+  }
+
+  template <typename DataType>
+  bool writeVector(std::vector<DataType> i_Data, ErrorCode* o_pErrorCode = nullptr) {
+    auto expectedWriteSize = i_Data.size() * sizeof(DataType);
+    bool r = write(m_Fd, &i_Data[0], expectedWriteSize) == expectedWriteSize;
+    if(r) {
+      r = sync(o_pErrorCode);
+    } else {
+      onSysCallError();
+    }
+    if(o_pErrorCode != nullptr) {
+      *o_pErrorCode = r ? ErrorCode::OK : ErrorCode::WRITE_ERROR;
+    }
+    return r;
+  }
+
+  bool truncate(uint32_t i_u32Size, ErrorCode* o_pErrorCode = nullptr) {
+    bool r = ftruncate(m_Fd, i_u32Size) == 0;
+    if(r) {
+      r = sync(o_pErrorCode);
+    } else {
+      onSysCallError();
+    }
+    if(o_pErrorCode != nullptr) {
+      *o_pErrorCode = r ? ErrorCode::OK : ErrorCode::WRITE_ERROR;
+    }
+    return r;
+  }
+
+  template<typename DataType>
+  bool read(DataType &o_Data, ErrorCode* o_pErrorCode = nullptr) {
+    bool r = ::read(m_Fd, (void*) &o_Data, sizeof(DataType)) == sizeof(DataType);
+    if(!r) {
+      onSysCallError();
+    }
+    if(o_pErrorCode != nullptr) {
+      *o_pErrorCode = r ? ErrorCode:: OK : ErrorCode::READ_ERROR;
+    }
+    return r;
+  }
+
+  template<typename DataType>
+  bool readVector(std::vector<DataType> &o_Data, ErrorCode* o_pErrorCode = nullptr) {
+    auto expectedReadSize = o_Data.size() * sizeof(DataType);
+    bool r = ::read(m_Fd, &o_Data[0], expectedReadSize) == expectedReadSize;
+    if(!r) {
+      onSysCallError();
+      if(o_pErrorCode != nullptr) {
+        *o_pErrorCode = ErrorCode::READ_ERROR;
+      }
+    }
+    return r;
+  }
+
   uint32_t getByteOffsetFromIndex(uint32_t index) {
     return m_u32HeaderSize + (index * m_u32ContainerSize);
   }
@@ -176,23 +265,17 @@ protected:
     return m_u32HeaderSize + (m_u32ContainerSize * m_CurrentHeader.offset);
   }
 
-  void readHeader() {
+  bool readHeader(ErrorCode* o_pErrorCode = nullptr) {
+    bool r = false;
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
-
-    seekTo(0);
-
-    char header[m_u32HeaderSize];
-    int32_t readSize = read(m_Fd, &header, m_u32HeaderSize);
-
-    if (readSize != static_cast<int32_t>(m_u32HeaderSize)) {
-      m_ErrorCode =
-          (readSize == -1) ? ErrorCode::NO_HEADER : ErrorCode::HEADER_MALFORMED;
-    } else {
-      m_ErrorCode = ErrorCode::OK;
-      m_CurrentHeader = HeaderType(header);
+    
+    if(seekTo(0, o_pErrorCode)) {
+      r = read<HeaderType>(m_CurrentHeader, o_pErrorCode);
     }
+
+    return r;
   }
 
   virtual void onVersionOlder(){};
@@ -200,13 +283,14 @@ protected:
 
   virtual void onMaxEntriesChanged(){};
 
-  void checkHeader() {
+  bool checkHeader(ErrorCode* o_pErrorCode = nullptr) {
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
 
     if (m_CurrentHeader.magic != m_ExpectedHeader.magic) {
-      m_ErrorCode = ErrorCode::MAGIC_MISMATCH;
+      *o_pErrorCode = ErrorCode::MAGIC_MISMATCH;
+      return false;
     }
 
     if (m_CurrentHeader.version < m_ExpectedHeader.version) {
@@ -218,48 +302,45 @@ protected:
     if (m_CurrentHeader.maxEntries != m_ExpectedHeader.maxEntries) {
       onMaxEntriesChanged();
     }
+
+    return true;
   }
 
-  void writeHeader() {
+  bool writeHeader(ErrorCode* o_pErrorCode = nullptr) {
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
-
-    seekTo(0);
-
-    if (write(m_Fd, &m_ExpectedHeader, m_u32HeaderSize) !=
-        static_cast<int32_t>(m_u32HeaderSize)) {
-      m_ErrorCode = ErrorCode::HEADER_WRITE_ERROR;
+    
+    if(seekTo(0, o_pErrorCode)) {
+      if(writeData<HeaderType>(m_ExpectedHeader, o_pErrorCode)) {
+        return truncate(m_u32HeaderSize, o_pErrorCode);
+      }
     }
 
-    ftruncate(m_Fd, m_u32HeaderSize);
-    fsync(m_Fd);
+    return false;
   }
 
-  void fixHeader() {
-    writeHeader();
-    readHeader();
-    checkHeader();
-
-    if (m_ErrorCode != ErrorCode::OK) {
-      std::cout << "Error: " << static_cast<uint32_t>(m_ErrorCode) << std::endl;
-      throw std::runtime_error("Could not fix header");
+  bool fixHeader(ErrorCode* o_pErrorCode = nullptr) {
+    if (writeHeader(o_pErrorCode)) {
+      if(readHeader(o_pErrorCode)) {
+        return checkHeader(o_pErrorCode);
+      }
     }
+    
+    return false;
   }
 
   void initialize() {
-    m_Fd = open(m_Path.c_str(), O_RDWR | O_CREAT,
-                0644); // NOLINT(hicpp-signed-bitwise)
+    m_Fd = open(m_Path.c_str(), O_RDWR | O_CREAT, 0644); // NOLINT(hicpp-signed-bitwise)
     if (m_Fd < 0) {
-      m_ErrorCode = ErrorCode::NO_HEADER;
-      throw std::runtime_error("Could not open file");
+      m_ErrorCode = ErrorCode::OPEN_ERROR;
+      m_Errors.emplace_back(strerror(errno));
     }
 
-    readHeader();
-    checkHeader();
-
-    if (m_ErrorCode != ErrorCode::OK) {
-      fixHeader();
+    if(m_ErrorCode == ErrorCode::OK) {
+      if(!readHeader(&m_ErrorCode) || !checkHeader(&m_ErrorCode)) {
+        (void)fixHeader(&m_ErrorCode);
+      }
     }
   }
 
@@ -288,73 +369,91 @@ public:
     }
   };
 
-  virtual void beforeAppend(const std::vector<ContainerType>& i_Containers) {
-    if (m_CurrentHeader.maxEntries == 0) {
-      return;
-    }
+  virtual void beforeAppend(const std::vector<ContainerType>& i_Containers) {};
 
-    if (m_CurrentHeader.offset + i_Containers.size() > m_CurrentHeader.maxEntries) {
-      m_CurrentHeader.offset = 0;
-    }
-  };
-
-  virtual void onAppendSuccess(ContainerType /*i_Container*/) {
-    m_CurrentHeader.offset++;
-    m_CurrentHeader.count++;
-  };
-
-  virtual void onAppendSuccess(const std::vector<ContainerType> &i_Containers) {
-
-  };
+  virtual void onAppendSuccess(ContainerType /*i_Container*/) {};
+  virtual void onAppendSuccess(const std::vector<ContainerType> &/*i_Containers*/) {};
 
   virtual void onAppendFailure(ContainerType i_Container){};
   virtual void onAppendFailure(const std::vector<ContainerType> &i_Containers){};
 
-  bool append(ContainerType i_Container) {
+  ErrorCode append(ContainerType i_Container) {
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
 
     beforeAppend(i_Container);
 
-    seekTo(getCurrentByteOffset());
-    bool r = write(m_Fd, &i_Container, m_u32ContainerSize) ==
-             static_cast<ssize_t>(m_u32ContainerSize);
+    ErrorCode r = ErrorCode::OK;
 
-    if (r) {
-      onAppendSuccess(i_Container);
-    } else {
-      onAppendFailure(i_Container);
+    if(seekTo(getCurrentByteOffset(), &r)) {
+      if(writeData<ContainerType>(i_Container, &r)) {
+        (void)sync(&r);
+        m_CurrentHeader.offset++;
+        m_CurrentHeader.count++;
+        onAppendSuccess(i_Container);
+      } else {
+        onAppendFailure(i_Container);
+      }
     }
-
-    return r && fsync(m_Fd) == 0;
+    
+    return r;
   }
 
-  bool append(const std::vector<ContainerType>& i_Containers) {
+  bool _append(std::vector<ContainerType> &i_Containers, ErrorCode* o_pErrorCode = nullptr) {
+    bool r = false;
+#ifndef LOCK_FREE
+    LG(m_Mutex);
+#endif
+
+    if(m_CurrentHeader.offset + i_Containers.size() > m_CurrentHeader.maxEntries && m_CurrentHeader.maxEntries != 0) {
+      auto writeableEntries = m_CurrentHeader.maxEntries - m_CurrentHeader.offset;
+      auto entriesToWrite = std::vector<ContainerType>(i_Containers.begin(), i_Containers.begin() + writeableEntries);
+      seekToIndex(m_CurrentHeader.offset);
+      if(writeVector(entriesToWrite, o_pErrorCode)) {
+        m_CurrentHeader.offset = 0;
+        m_CurrentHeader.count += writeableEntries;
+        i_Containers = std::vector<ContainerType>(i_Containers.begin() + writeableEntries, i_Containers.end());
+        r = _append(i_Containers, o_pErrorCode);
+      }
+    } else {
+      r = seekToIndex(m_CurrentHeader.offset, o_pErrorCode) && writeVector(i_Containers, o_pErrorCode);
+      if(r) {
+        if(i_Containers.size() == m_CurrentHeader.maxEntries) {
+          m_CurrentHeader.offset = 0;
+        } else {
+          m_CurrentHeader.offset += i_Containers.size();
+        }
+        m_CurrentHeader.count += i_Containers.size();
+      }
+    }
+
+    return r;
+  }
+
+  ErrorCode append(std::vector<ContainerType>& i_Containers) {
+    ErrorCode r = ErrorCode::OK;
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
 
     beforeAppend(i_Containers);
-    auto expectedReadSize = i_Containers.size() * m_u32ContainerSize;
-    seekTo(getCurrentByteOffset());
-    bool r = write(m_Fd, &i_Containers[0], expectedReadSize) == expectedReadSize;
 
-    if (r) {
+    if(_append(i_Containers, &r)) {
       onAppendSuccess(i_Containers);
     } else {
       onAppendFailure(i_Containers);
     }
 
-    return fsync(m_Fd) == 0 && r;
+    return r;
   }
 
-  bool append(EntryType i_Entry) {
+  ErrorCode append(EntryType i_Entry) {
     ContainerType container(i_Entry);
     return append(container);
   }
 
-  bool append(const std::vector<EntryType>& i_Entries) {
+  ErrorCode append(const std::vector<EntryType>& i_Entries) {
     std::vector<ContainerType> containers;
     // NOLINTNEXTLINE(altera-unroll-loops)
     for (auto &entry : i_Entries) {
@@ -367,44 +466,38 @@ public:
     return (getFileSize() - m_u32HeaderSize) / m_u32ContainerSize;
   }
 
-  std::vector<ContainerType> getEntriesFromTo(uint32_t i_u32Start,
-                                              uint32_t i_u32End) {
+  bool getEntriesFromTo(std::vector<ContainerType>& o_Containers, uint32_t i_u32Start, uint32_t i_u32End, ErrorCode* o_pErrorCode = nullptr) {
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
-
-    std::vector<ContainerType> r(i_u32End - i_u32Start);
-    seekToIndex(i_u32Start);
-    auto expectedReadSize = (i_u32End - i_u32Start) * m_u32ContainerSize;
-    if (read(m_Fd, &r[0], expectedReadSize) == expectedReadSize) {
-      return r;
+    o_Containers.resize(i_u32End - i_u32Start);
+    if(seekToIndex(i_u32Start, o_pErrorCode)) {
+      return readVector(o_Containers, o_pErrorCode);
     }
-    return {};
+    return false;
   }
 
-  bool getEntry(uint32_t i_u32Index, ContainerType &o_Container) {
+  bool getEntry(uint32_t i_u32Index, ContainerType &o_Container, ErrorCode* o_pErrorCode = nullptr) {
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
-    return seekToIndex(i_u32Index) &&
-           read(m_Fd, &o_Container, m_u32ContainerSize) == m_u32ContainerSize;
+    return seekToIndex(i_u32Index, o_pErrorCode) && read(o_Container, o_pErrorCode);
   }
 
   bool getEntriesFrom(std::vector<ContainerType> &o_Containers,
-                      uint32_t i_u32Index, uint32_t i_u32Count) {
+                      uint32_t i_u32Index, uint32_t i_u32Count, ErrorCode *o_pErrorCode = nullptr) {
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
     o_Containers.resize(i_u32Count);
-    seekToIndex(i_u32Index);
-    auto expectedReadCount = i_u32Count * m_u32ContainerSize;
-    return read(m_Fd, &o_Containers[0], expectedReadCount) == expectedReadCount;
+    return seekToIndex(i_u32Index, o_pErrorCode) && readVector(o_Containers, o_pErrorCode);
   }
 
-  void
+  bool
   getEntriesChunked(std::function<void(std::vector<ContainerType>)> i_Callback,
                     uint32_t i_u32Begin = 0, uint32_t i_u32End = 0,
-                    uint32_t i_u32ChunkSize = 100000) {
+                    uint32_t i_u32ChunkSize = 100000,
+                    ErrorCode *o_pErrorCode = nullptr) {
     std::vector<ContainerType> tmp(i_u32ChunkSize);
 
     uint32_t entryCount = getEntryCount();
@@ -421,18 +514,21 @@ public:
       } else {
         rdCnt = i_u32ChunkSize;
       }
-      tmp = getEntriesFromTo(i_u32Begin, i_u32Begin + rdCnt);
-      i_u32Begin += rdCnt;
-      i_Callback(tmp);
+      if(getEntriesFromTo(tmp, i_u32Begin, i_u32Begin + rdCnt, o_pErrorCode)) {
+        i_u32Begin += rdCnt;
+        i_Callback(tmp);
+      } else {
+        return false;
+      }
     }
+
+    return true;
   }
 
-  virtual bool removeEntryAtEnd() {
-    // we can just remove the entry from the end of the file by truncating the
-    // file
+  bool removeEntryAtEnd() {
     m_CurrentHeader.count--;
     m_CurrentHeader.offset--;
-    return ftruncate(m_Fd, getCurrentByteOffset()) == 0 && fsync(m_Fd) == 0;
+    return truncate(m_CurrentHeader.offset * m_u32ContainerSize + m_u32HeaderSize);
   }
 
   uint32_t getOffset() {
@@ -446,7 +542,7 @@ public:
 #ifndef LOCK_FREE
     LG(m_Mutex);
 #endif
-    return m_CurrentHeader.count * m_u32ContainerSize + m_u32HeaderSize;
+    return std::filesystem::file_size(m_Path);
   }
 
   bool deleteFile() {
@@ -481,7 +577,10 @@ public:
   }
 
   bool clear() {
-    return ftruncate(m_Fd, m_u32HeaderSize) == 0 && fsync(m_Fd) == 0;
+#ifndef LOCK_FREE
+    LG(m_Mutex);
+#endif
+    return truncate(m_u32HeaderSize);
   }
 
   bool isEmpty() {

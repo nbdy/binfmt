@@ -13,7 +13,7 @@
 
 #include "binfmt.h"
 
-#define TEST_MAX_ENTRIES 100000
+#define TEST_MAX_ENTRIES 2000
 #define TEST_DIRECTORY "/tmp/binfmt_test"
 #define TEST_BINARY_FILE "/tmp/binfmt_test/test_binary"
 #define TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY "/tmp/this_directory_probably_does_not_exist/test_binary"
@@ -40,22 +40,22 @@ TestBinaryEntryContainer generateRandomTestEntryContainer() {
   return TestBinaryEntryContainer(generateRandomTestEntry());
 }
 
-int appendRandomAmountOfEntries(TestBinaryFile f, int max = 20) {
+int appendRandomAmountOfEntries(TestBinaryFile& f, int max = 20) {
   int r = std::rand() % max; // NOLINT(cert-msc50-cpp)
   for (int i = 0; i < r; i++) {
-    EXPECT_TRUE(f.append(generateRandomTestEntryContainer()));
+    EXPECT_EQ(f.append(generateRandomTestEntryContainer()), binfmt::ErrorCode::OK);
   }
   return r;
 }
 
 std::vector<TestBinaryEntryContainer>
-appendRandomAmountOfEntriesV(TestBinaryFile f, int max = 20) {
+appendRandomAmountOfEntriesV(TestBinaryFile& f, int max = 20) {
   int x = std::rand() % max; // NOLINT(cert-msc50-cpp)
   std::vector<TestBinaryEntryContainer> r;
   for (int i = 0; i < x; i++) {
     auto v = generateRandomTestEntryContainer();
     r.push_back(v);
-    EXPECT_TRUE(f.append(v));
+    EXPECT_EQ(f.append(v), binfmt::ErrorCode::OK);
   }
   return r;
 }
@@ -67,7 +67,7 @@ appendExactAmountOfEntriesV(BinaryFileType &f, uint32_t count = 42) {
   for (int i = 0; i < count; i++) {
     auto v = generateRandomTestEntryContainer();
     r.push_back(v);
-    EXPECT_TRUE(f.append(v));
+    EXPECT_EQ(f.append(v), binfmt::ErrorCode::OK);
   }
   return r;
 }
