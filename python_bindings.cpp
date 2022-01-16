@@ -7,5 +7,5 @@
 #include "binfmt.h"
 
 PYBIND11_MODULE(binfmt, m) {
-  // TODO
+  // TODO: add bindings
 }

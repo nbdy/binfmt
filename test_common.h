@@ -7,53 +7,91 @@
 
 #include <cstdint>
 #include <ctime>
+#include <fstream>
 
 #include "gtest/gtest.h"
 
 #include "binfmt.h"
 
-#define TEST_DIRECTORY "/tmp/xxxxxxxxxx__xxxxxxxxxxx__xx"
-#define TEST_BINARY_FILE "/tmp/xxxxxxx__xxxxxxxxx.bin"
-#define TEST_MAX_ENTRIES 1000000000
-#define TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY "/tmp/xxxxxxxxxxxxxxxxxxx/xxxxxxx.bin"
-
-#define TIMESTAMP std::chrono::high_resolution_clock::to_time_t(std::chrono::high_resolution_clock::now())
-
-const char* TIMEIT_NAME = "TIMEIT";
-time_t TIMEIT_START_TIMESTAMP = 0;
-time_t TIMEIT_END_TIMESTAMP = 0;
-time_t TIMEIT_DIFF = 0;
-
-#define TIMEIT_START(name) \
-TIMEIT_NAME = name;        \
-TIMEIT_START_TIMESTAMP = TIMESTAMP;
-
-#define TIMEIT_END \
-TIMEIT_END_TIMESTAMP = TIMESTAMP;
-
-#define TIMEIT_RESULT \
-TIMEIT_DIFF = TIMEIT_END_TIMESTAMP - TIMEIT_START_TIMESTAMP; \
-std::cout << TIMEIT_NAME << ": " << std::to_string(TIMEIT_DIFF) << " s" << std::endl;
-
-struct TestBinaryFileHeader : public binfmt::BinaryFileHeaderBase {
-  TestBinaryFileHeader(): BinaryFileHeaderBase(0x7357, 0x8888) {}
-};
+#define TEST_MAX_ENTRIES 100000
+#define TEST_DIRECTORY "/tmp/binfmt_test"
+#define TEST_BINARY_FILE "/tmp/binfmt_test/test_binary"
+#define TEST_BINARY_FILE_IN_NON_EXISTENT_DIRECTORY "/tmp/this_directory_probably_does_not_exist/test_binary"
 
 struct TestBinaryEntry {
-  int32_t  iNumber;
-  float    fNumber;
+  uint32_t m_u32Number;
 };
 
+using TestBinaryHeader = binfmt::BinaryFileHeaderBase;
 using TestBinaryEntryContainer = binfmt::BinaryEntryContainer<TestBinaryEntry>;
-using TestBinaryFile = binfmt::BinaryFile<TestBinaryFileHeader, TestBinaryEntry, TestBinaryEntryContainer, TEST_MAX_ENTRIES>;
-
+using TestBinaryFile = binfmt::BinaryFile<TestBinaryHeader, TestBinaryEntry, TestBinaryEntryContainer>;
 
 int generateRandomInteger() {
   return std::rand() % 10000000; // NOLINT(cert-msc50-cpp)
 }
 
-float generateRandomFloat() {
-  return static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX); // NOLINT(cert-msc50-cpp)
+TestBinaryEntry generateRandomTestEntry() {
+  return TestBinaryEntry{
+      static_cast<uint32_t>(generateRandomInteger()),
+  };
 }
 
-#endif //BINFMT__TEST_COMMON_H_
+TestBinaryEntryContainer generateRandomTestEntryContainer() {
+  return TestBinaryEntryContainer(generateRandomTestEntry());
+}
+
+int appendRandomAmountOfEntries(TestBinaryFile f, int max = 20) {
+  int r = std::rand() % max; // NOLINT(cert-msc50-cpp)
+  for (int i = 0; i < r; i++) {
+    EXPECT_TRUE(f.append(generateRandomTestEntryContainer()));
+  }
+  return r;
+}
+
+std::vector<TestBinaryEntryContainer>
+appendRandomAmountOfEntriesV(TestBinaryFile f, int max = 20) {
+  int x = std::rand() % max; // NOLINT(cert-msc50-cpp)
+  std::vector<TestBinaryEntryContainer> r;
+  for (int i = 0; i < x; i++) {
+    auto v = generateRandomTestEntryContainer();
+    r.push_back(v);
+    EXPECT_TRUE(f.append(v));
+  }
+  return r;
+}
+
+template <typename BinaryFileType>
+std::vector<TestBinaryEntryContainer>
+appendExactAmountOfEntriesV(BinaryFileType &f, uint32_t count = 42) {
+  std::vector<TestBinaryEntryContainer> r;
+  for (int i = 0; i < count; i++) {
+    auto v = generateRandomTestEntryContainer();
+    r.push_back(v);
+    EXPECT_TRUE(f.append(v));
+  }
+  return r;
+}
+
+TestBinaryFile getRandomTestFile() {
+  TestBinaryFile r("/tmp/test.bin", TestBinaryHeader {});
+  EXPECT_TRUE(std::filesystem::exists(r.getPath()));
+  return r;
+}
+
+TestBinaryFile getRandomTestEntryLimitedFile() {
+  TestBinaryFile r("/tmp/test.bin", TestBinaryHeader {0, 0, TEST_MAX_ENTRIES});
+  EXPECT_TRUE(std::filesystem::exists(r.getPath()));
+  return r;
+}
+
+template <typename BinaryFileType> void cleanupTestFile(BinaryFileType& f) {
+  f.deleteFile();
+  EXPECT_FALSE(std::filesystem::exists(f.getPath()));
+}
+
+void cleanup(const std::string &FilePath) {
+  EXPECT_TRUE(std::filesystem::remove(FilePath));
+  EXPECT_FALSE(std::filesystem::exists(FilePath));
+}
+
+#endif // BINFMT__TEST_COMMON_H_

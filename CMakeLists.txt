@@ -8,7 +8,7 @@ set_target_properties(binfmt PROPERTIES PUBLIC_HEADER "binfmt.h")
 
 option(TESTS "Compile tests" ON)
 option(EXAMPLES "Compile examples" ON)
-option(PYTHON "Compile python bindings" OFF)
+option(PYTHON "Compile python bindings" ON)
 
 if(TESTS)
     include(FetchContent)
@@ -20,17 +20,21 @@ if(TESTS)
     FetchContent_MakeAvailable(googletest)
     enable_testing()
 
-    add_executable(binfmt_tests tests.cpp)
-    add_executable(binfmt_benchmarks benchmarks.cpp)
+    add_executable(binfmt_FileUtils_tests test_FileUtils.cpp)
+    add_executable(binfmt_BinaryFile_tests test_BinaryFile.cpp)
+    # add_executable(binfmt_benchmarks benchmarks.cpp)
 
-    target_compile_definitions(binfmt_tests PRIVATE -DTESTS)
-    target_compile_definitions(binfmt_benchmarks PRIVATE -DTESTS)
+    target_compile_definitions(binfmt_FileUtils_tests PRIVATE -DTESTS)
+    target_compile_definitions(binfmt_BinaryFile_tests PRIVATE -DTESTS)
+    # target_compile_definitions(binfmt_benchmarks PRIVATE -DTESTS)
 
-    target_link_libraries(binfmt_tests gtest_main)
-    target_link_libraries(binfmt_benchmarks gtest_main)
+    target_link_libraries(binfmt_FileUtils_tests gtest_main)
+    target_link_libraries(binfmt_BinaryFile_tests gtest_main)
+    # target_link_libraries(binfmt_benchmarks gtest_main)
 
     include(GoogleTest)
-    gtest_discover_tests(binfmt_tests)
+    gtest_discover_tests(binfmt_FileUtils_tests)
+    gtest_discover_tests(binfmt_BinaryFile_tests)
 endif()
 
 if(EXAMPLES)
