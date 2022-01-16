@@ -8,7 +8,7 @@ set_target_properties(binfmt PROPERTIES PUBLIC_HEADER "binfmt.h")
 
 option(TESTS "Compile tests" ON)
 option(EXAMPLES "Compile examples" ON)
-option(PYTHON "Compile python bindings" ON)
+option(PYTHON "Compile python bindings" OFF)
 
 if(TESTS)
     include(FetchContent)

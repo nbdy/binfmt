@@ -42,8 +42,8 @@ struct LogEntry {
   char message[128];
 };
 
-typedef BinaryEntryContainer<LogEntry> LogEntryContainer;
-typedef BinaryFile<LogHeader, LogEntry, LogEntryContainer, 1000> LogFile;
+using LogEntryContainer = BinaryEntryContainer<LogEntry>;
+using LogFile = BinaryFile<LogHeader, LogEntry, LogEntryContainer, 1000>;
 
 int main() {
   LogFile log("mylog.bin");
@@ -59,7 +59,13 @@ int main() {
       }
     }
   }
-  
+
   return 0;
 }
+```
+
+```shell
+$ /home/nbdy/CLionProjects/binfmt/cmake-build-debug/binfmt_ex_min
+This is a log message
+Another message
 ```
