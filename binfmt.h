@@ -211,7 +211,8 @@ protected:
   bool read(DataType &o_Data, uint32_t i_u32ByteOffset,
             ErrorCode *o_pErrorCode = nullptr) {
     bool bOk = pread(m_Fd, &o_Data, sizeof(DataType),
-                     static_cast<off_t>(i_u32ByteOffset)) == static_cast<ssize_t>(sizeof(DataType));
+                     static_cast<off_t>(i_u32ByteOffset)) ==
+               static_cast<ssize_t>(sizeof(DataType));
     bOk ? (void)sync(o_pErrorCode) : onSysCallError(ErrorCode::READ_ERROR);
     return bOk;
   }
@@ -428,9 +429,7 @@ public:
     return (getFileSize() - m_u32HeaderSize) / m_u32ContainerSize;
   }
 
-  uint32_t getEntryCount() {
-    return m_CurrentHeader.count;
-  }
+  uint32_t getEntryCount() { return m_CurrentHeader.count; }
 
   bool getEntriesFromTo(std::vector<ContainerType> &o_Containers,
                         uint32_t i_u32Start, uint32_t i_u32End,
