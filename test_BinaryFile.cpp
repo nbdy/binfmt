@@ -327,3 +327,21 @@ TEST(EntryLimitedBinaryFile, testRollover) {
   // Cleanup
   cleanupTestFile(t);
 }
+
+// NOLINTNEXTLINE(cert-err58-cpp)
+TEST(BinaryFile, testReopen) {
+  {
+    TestBinaryFile t = getRandomTestFile();
+    t.append(generateRandomTestEntryContainer());
+    EXPECT_EQ(t.getOffset(), 1);
+  }
+
+  {
+    TestBinaryFile t = getRandomTestFile();
+    t.append(generateRandomTestEntryContainer());
+    EXPECT_EQ(t.getOffset(), 2);
+  }
+
+
+  getRandomTestFile().deleteFile();
+}
