@@ -424,8 +424,12 @@ public:
     return append(containers);
   }
 
-  uint32_t getEntryCount() {
+  uint32_t getEntryCountFromFileSize() {
     return (getFileSize() - m_u32HeaderSize) / m_u32ContainerSize;
+  }
+
+  uint32_t getEntryCount() {
+    return m_CurrentHeader.count;
   }
 
   bool getEntriesFromTo(std::vector<ContainerType> &o_Containers,

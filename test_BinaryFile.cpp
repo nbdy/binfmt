@@ -331,17 +331,35 @@ TEST(EntryLimitedBinaryFile, testRollover) {
 // NOLINTNEXTLINE(cert-err58-cpp)
 TEST(BinaryFile, testReopen) {
   {
-    TestBinaryFile t = getRandomTestFile();
+    TestBinaryFile t = getRandomTestEntryLimitedFile();
     t.append(generateRandomTestEntryContainer());
     EXPECT_EQ(t.getOffset(), 1);
   }
 
   {
-    TestBinaryFile t = getRandomTestFile();
+    TestBinaryFile t = getRandomTestEntryLimitedFile();
     t.append(generateRandomTestEntryContainer());
     EXPECT_EQ(t.getOffset(), 2);
   }
 
+  {
+    TestBinaryFile t = getRandomTestEntryLimitedFile();
+    std::vector<TestBinaryEntryContainer> entries;
+    entries.resize(TEST_MAX_ENTRIES - 3);
+    std::fill(entries.begin(), entries.end(), generateRandomTestEntryContainer());
+    EXPECT_EQ(t.append(entries), binfmt::ErrorCode::OK);
+    EXPECT_EQ(t.getOffset(), TEST_MAX_ENTRIES - 1);
+  }
+
+  {
+    TestBinaryFile t = getRandomTestEntryLimitedFile();
+    std::vector<TestBinaryEntryContainer> entries;
+    entries.resize(20);
+    std::fill(entries.begin(), entries.end(), generateRandomTestEntryContainer());
+    EXPECT_EQ(t.append(entries), binfmt::ErrorCode::OK);
+    EXPECT_EQ(t.getOffset(), 19);
+    EXPECT_EQ(t.getEntryCount(), 2019);
+  }
 
   getRandomTestFile().deleteFile();
 }
