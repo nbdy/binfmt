@@ -5,28 +5,33 @@
 <br>
 `A header only framework for binary file formats`
 
-## benchmarks
+## [benchmarks](doc/Benchmarks.md)
 
 ### single insert (append EntryType)
 
 | Number | Time (s) |
 |--------|----------|
-| 1k     | ~ 1      |
-| 10k    | ~ 13     |
-| 100k   | toolong  |
+| 1k     | 1.35     |
+| 10k    | 12.82    |
+| 100k   | 128.65   |
 
 ### vector insert (append std::vector<EntryType>)
 
-| Number | Time (s) |
-|--------|----------|
-| 1k     | < 0 s    |
-| 1M     | 968ms    |
+| Number | Time (ms) |
+|--------|-----------|
+| 1k     | 1         |
+| 10k    | 1         |
+| 100k   | 6         |
+| 1M     | 40        |
 
 ### read
 
 | Number | Time (s) |
 |--------|----------|
-| 1M     | 87ms     |
+| 1k     | 0ms      |
+| 10k    | 0ms      |
+| 100k   | 0ms      |
+| 1M     | 8ms      |
 
 ## Minimal example
 
