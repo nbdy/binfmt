@@ -1,0 +1,3 @@
+[submodule "FunctionTimer"]
+	path = FunctionTimer
+	url = https://github.com/nbdy/FunctionTimer
