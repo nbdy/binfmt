@@ -9,24 +9,24 @@
 
 ### single insert (append EntryType)
 
-|Number|Time (s)|
-|------|---------|
-|1k    |~ 1      |
-|10k   |~ 13     |
-|100k  |toolong  |
+| Number | Time (s) |
+|--------|----------|
+| 1k     | ~ 1      |
+| 10k    | ~ 13     |
+| 100k   | toolong  |
 
 ### vector insert (append std::vector<EntryType>)
 
-|Number|Time (s)|
-|------|---------|
-|1k    |< 0 s    |
-|1M    |~ 2 s    |
+| Number | Time (s) |
+|--------|----------|
+| 1k     | < 0 s    |
+| 1M     | 968ms    |
 
 ### read
 
-|Number|Time (s)|
-|------|---------|
-|1M    |< 0 s    |
+| Number | Time (s) |
+|--------|----------|
+| 1M     | 87ms     |
 
 ## Minimal example
 
