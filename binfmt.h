@@ -211,7 +211,7 @@ protected:
   bool read(DataType &o_Data, uint32_t i_u32ByteOffset,
             ErrorCode *o_pErrorCode = nullptr) {
     bool bOk = pread(m_Fd, &o_Data, sizeof(DataType),
-                     static_cast<off_t>(i_u32ByteOffset)) == sizeof(DataType);
+                     static_cast<off_t>(i_u32ByteOffset)) == static_cast<ssize_t>(sizeof(DataType));
     bOk ? (void)sync(o_pErrorCode) : onSysCallError(ErrorCode::READ_ERROR);
     return bOk;
   }
@@ -221,7 +221,7 @@ protected:
                   ErrorCode *o_pErrorCode = nullptr) {
     auto expectedReadSize = o_Data.size() * sizeof(DataType);
     bool bOk = pread(m_Fd, &o_Data[0], expectedReadSize, i_u32ByteOffset) ==
-               expectedReadSize;
+               static_cast<ssize_t>(expectedReadSize);
     bOk ? (void)sync(o_pErrorCode) : onSysCallError(ErrorCode::READ_ERROR);
     return bOk;
   }
