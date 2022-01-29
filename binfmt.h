@@ -11,6 +11,8 @@
 #define LOCK_FREE
 #define CAPTURE_ERRORS
 
+#include <vector>
+#include <functional>
 #include <fcntl.h>
 #include <filesystem>
 #include <mutex>
