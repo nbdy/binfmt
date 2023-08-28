@@ -26,7 +26,7 @@
 
 ### read
 
-| Number | Time (s) |
+| Number | Time (ms) |
 |--------|----------|
 | 1k     | 0ms      |
 | 10k    | 0ms      |
